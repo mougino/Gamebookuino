@@ -138,9 +138,9 @@ Gamebuino gb;
 #define NCHRY 8     // number of lines per screen with font3x5
 #define TXTSIZE 180 // text on screen: max 21x8 characters (with font3x5) + final '\0' + a few characters on next line (for active links)
 
-#define EEPROM_IDENTIFIER 0xFFDF
+#define EEPROM_IDENTIFIER 0xFFDF // FF = Fighting Fantasy, DF = Défis Fantastiques
 #define PGMT(pgm_ptr) (reinterpret_cast <const __FlashStringHelper*> (pgm_ptr))
-#define C_IS_SPECIAL_CHARACTER (c=='>' || c=='<' || c=='^')
+#define IS_SPECIAL_CHARACTER(T) (T=='>' || T=='<' || T=='^')
 #define TEST_YOUR_LUCK 0
 #define ROLL_ONE_DIE 1
 #define ROLL_BOTH_DICE 2
@@ -301,7 +301,7 @@ void restoreStatsFromEEPROM() {
   word id;
   id=(EEPROM.read(0) << 8) & 0xFF00; //MSB
   id+=EEPROM.read(1) & 0x00FF; //LSB
-  if(id!=EEPROM_IDENTIFIER) return; // cancel if no or bad EEPROM identifier
+  if(id!=EEPROM_IDENTIFIER) { initGame(); return; } // initialize stats if no or bad EEPROM identifier
   skiC=EEPROM.read(2);
   skiT=EEPROM.read(3);
   staC=EEPROM.read(4);
@@ -348,8 +348,7 @@ void setup() {
   Serial.begin(9600); PFFS.begin(10, rx, tx); // initialize petit_fatfs
   ldverr=pf_open(LDV);
   #endif
-  initGame(); // initialize player stats
-  restoreStatsFromEEPROM(); // restore saved stats
+  restoreStatsFromEEPROM(); // restore saved stats, or initialize stats if no savegame
   myTitleScreen(PGMT(DF_title1), PGMT(DF_title2), DF_logo); // show title screen
   gb.pickRandomSeed();
 } // setup()
@@ -620,7 +619,7 @@ void seekBook(int tgtline) { // seek current paragraph for target line (used whe
     for(byte i=0; ; i++) { // simulate printing txt[] on screen + find all offsets to new lines (nxl[])
       char c=txt[i];
       if(c==NULL || y>NCHRY) break; // screen has been filled
-      if(x>1 || c!='\n') { x++; if(x>NCHRX || c=='\n') { y++; x=1; nxl[y-2]=i+1; } }
+      x++; if(x>NCHRX || c=='\n') { y++; x=1; nxl[y-2]=i+1; }
     } // for(byte i=0; ; i++)
     if(tgtline!=crline) {
       if(tgtline<=crline+NCHRY) { // target line is somewhere in current page
@@ -641,11 +640,11 @@ void printBook() { // print txt[] on screen (current paragraph at poffset) + set
     char c=txt[i];
     if(c==NULL) { nxline=0; return; }
     if(gb.display.cursorY>=LCDHEIGHT) { nxpage=i; return; }
-    if(C_IS_SPECIAL_CHARACTER) {
+    if(IS_SPECIAL_CHARACTER(c)) {
       if(pcaret==255) pcaret=i;
       printCaret(pcaret==i && (gb.frameCount/4)%2);
       if(inAdvSheet && c=='>') i++; // skip special code following caret in adventure sheet
-    } else if(gb.display.cursorX || c!='\n') gb.display.print(c);
+    } else gb.display.print(c);
     if(!nxline && gb.display.cursorY>0) nxline=i+1;
   }
 }
@@ -659,7 +658,7 @@ byte prevCaretOnScreen() {
   for(byte i=pcaret-1; ; i--) {
     if(i==255) break;
     char c=txt[i];
-    if(C_IS_SPECIAL_CHARACTER) return i;
+    if(IS_SPECIAL_CHARACTER(c)) return i;
   }
   return 255;
 }
@@ -669,7 +668,7 @@ byte nextCaretOnScreen() {
   for(byte i=pcaret+1; ; i++) {
     char c=txt[i];
     if(i==nxpage || c==NULL) break;
-    if(C_IS_SPECIAL_CHARACTER) return i;
+    if(IS_SPECIAL_CHARACTER(c)) return i;
   }
   return 255;
 }
