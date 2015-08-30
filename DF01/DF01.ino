@@ -459,7 +459,7 @@ void loop() {
 
           case '\004': // Gold
             choice=numKeyboard(gold, 3); // current gold as init number, 3 digits max
-            if(choice!=-1) { gold=min(255, choice); showAdventureSheet(); }
+            if(choice!=-1) { gold=min(200, choice); showAdventureSheet(); }
             break;
 
           case '\005': // Provisions
