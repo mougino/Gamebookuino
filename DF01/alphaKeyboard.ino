@@ -17,9 +17,6 @@ void alphaKeyboard(char* tgt, byte lmax) {
   while(1) {
     if (gb.update()) {
       // draw input bar
-      #ifdef FONT5X7_C
-      gb.display.setFont(font3x5);
-      #endif
       gb.display.cursorY++; if(strlen(tgt)) gb.display.print(tgt);
       #ifdef FONT5X7_C
       gb.display.setFont(font5x7);
@@ -42,18 +39,16 @@ void alphaKeyboard(char* tgt, byte lmax) {
       // draw select box
       gb.display.drawRoundRect(2*x*gb.display.fontWidth+1, (y+1)*(gb.display.fontHeight+2)+(y?1:2), ((x==9 && y==2)?2:1)*gb.display.fontWidth+3, gb.display.fontHeight+3, 3);
       // draw legend
-      #ifdef FRENCH
-      moveCursor(LCDWIDTH-7*gb.display.fontWidth-6, LCDHEIGHT-gb.display.fontHeight+1);
-      gb.display.print(F("annuler"));
-      #else
-      moveCursor(LCDWIDTH-6*gb.display.fontWidth-6, LCDHEIGHT-gb.display.fontHeight+1);
-      gb.display.print(F("cancel"));
-      #endif
+      moveCursor(LCDWIDTH-strlen(CANCEL)*gb.display.fontWidth-6, LCDHEIGHT-gb.display.fontHeight+1);
+      gb.display.print(F(CANCEL));
       #ifdef FONT5X7_C
       gb.display.setFont(font5x7);
       gb.display.cursorY-=2;
       #endif
       gb.display.print(F("\026"));
+      #ifdef FONT5X7_C
+      gb.display.setFont(font3x5);
+      #endif
       // handle user input
       if(gb.buttons.pressed(BTN_RIGHT)) x=(x+1)%10;
       if(gb.buttons.pressed(BTN_LEFT)) { x--; if(x==255) x=9; }
@@ -80,8 +75,5 @@ void alphaKeyboard(char* tgt, byte lmax) {
       } // if(gb.buttons.pressed(BTN_A))
     } // if (gb.update())
   } // while(1)
-  #ifdef FONT5X7_C
-  gb.display.setFont(font3x5);
-  #endif
 } // alphaKeyboard()
 

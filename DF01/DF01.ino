@@ -1,7 +1,7 @@
 // Nota: this app needs a modified version of the Gamebuino library
 // with sound and keyboard stripped off, and enhanced gb.popup()
 // If it was not provided to you when you downloaded this file,
-// you can get it at http://mougino.free.fr/arduino
+// you can get it at https://github.com/mougino/Gamebookuino
 
 #define ENGINE_VER "v0.2 (24-AUG-2015)"
 #define PCSOFT_VER "v0.1 (15-AUG-2015)"
@@ -12,11 +12,11 @@
 #include <EEPROM.h>
 
 //#define debug // Comment for live engine. Uncomment for demo engine
-#define FRENCH // Comment if you want menus in English
 #define FONT5X7_C // Comment if you want only Font3x5, numKeyboard() won't be as pretty but it'll save memory
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // THIS IS THE PART TO CHANGE WHEN YOU BUILD THE APP WITH A DIFFERENT GAMEBOOK:
+#define FRENCH // Comment if you want menus in English
 #define NPAR 400 // Number of paragraphs in this Gamebook
 #ifdef FRENCH // Intro / init constants
 #define LDV "DF01.LDV"
@@ -34,6 +34,7 @@ PROGMEM const char DF_eqp_ini[]="^sword\n"  "^leather armour\n"  "^rucksack\n"  
 
 // In-game labels
 #ifdef FRENCH
+#define CANCEL "Annuler"
 // Adventure sheet constants
 PROGMEM const char DF_adv[]="[FEUILLE D'AVENTURE]";
 PROGMEM const char DF_ski[]="Habilete:";
@@ -70,7 +71,6 @@ PROGMEM const char DF_you[]="VOUS";
 PROGMEM const char DF_fski[]="HAB";
 PROGMEM const char DF_fsta[]="END:";
 // Menus
-PROGMEM const char DF_m0s0[] = "Annuler";
 PROGMEM const char DF_m1s1[] = "Modif. stat courante";
 PROGMEM const char DF_m1s2[] = "Modif. total initial";
 PROGMEM const char DF_m2s1[] = "Boire une mesure";
@@ -82,6 +82,7 @@ PROGMEM const char DF_m5s2[] = "Potion de Vigueur";
 PROGMEM const char DF_m5s3[] = "P. de Bonne Fortune";
 //-----------------------------------------------------------------------------
 #else
+#define CANCEL "Cancel"
 // Adventure sheet constants
 PROGMEM const char DF_adv[]="[ADVENTURE SHEET]";
 PROGMEM const char DF_ski[]="Skill:";
@@ -118,7 +119,6 @@ PROGMEM const char DF_you[]="YOU";
 PROGMEM const char DF_fski[]="ski";
 PROGMEM const char DF_fsta[]="STA:";
 // Menus
-PROGMEM const char DF_m0s0[] = "Cancel";
 PROGMEM const char DF_m1s1[] = "Change current stat";
 PROGMEM const char DF_m1s2[] = "Change initial level";
 PROGMEM const char DF_m2s1[] = "Drink one measure";
@@ -150,6 +150,7 @@ Gamebuino gb;
 #define PREVLINE 150
 #define NEXTLINE 200
 
+PROGMEM const char DF_m0s0[] = CANCEL;
 PROGMEM const char* DF_menu1[3] = {DF_m1s1, DF_m1s2, DF_m0s0}; // Edit stat menu
 PROGMEM const char* DF_menu2[2] = {DF_m2s1, DF_m0s0}; // Drink potion menu
 PROGMEM const char* DF_menu3[3] = {DF_m3s1, DF_m3s2, DF_m0s0}; // Provision menu
@@ -298,6 +299,7 @@ void initGame() {
 }
 
 void restoreStatsFromEEPROM() {
+  #ifndef debug
   word id;
   id=(EEPROM.read(0) << 8) & 0xFF00; //MSB
   id+=EEPROM.read(1) & 0x00FF; //LSB
@@ -317,9 +319,11 @@ void restoreStatsFromEEPROM() {
   for(byte i=0; i<EQPSIZE-1; i++) {
     eqp[i]=EEPROM.read(14+i);
   } eqp[EQPSIZE-1]=NULL;
+  #endif
 }
 
 void saveStatsToEEPROM() {
+  #ifndef debug
   EEPROM.write(0, (EEPROM_IDENTIFIER >> 8) & 0x00FF); //MSB
   EEPROM.write(1, EEPROM_IDENTIFIER & 0x00FF); //LSB
   EEPROM.write(2, skiC);
@@ -336,6 +340,7 @@ void saveStatsToEEPROM() {
   EEPROM.write(13, par & 0x00FF); //LSB
   for(byte i=0; i<EQPSIZE-1; i++) {
     EEPROM.write(14+i, eqp[i]); }
+  #endif
 }
 
 void setup() {
@@ -491,7 +496,10 @@ void loop() {
           case '\011': // Save game
             saveStatsToEEPROM();
             inAdvSheet=false;
-            backToBook();
+            poffset=oldpoffset; // restore position in book
+            crline=oldcrline;
+            pcaret=oldpcaret;
+            readBook();
             gb.popup(DF_savok,15);
             break;
 

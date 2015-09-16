@@ -17,11 +17,11 @@ int numKeyboard(int init, byte digits) {
   byte x=0, y=0;
   if(init!=-1) int2char(init, nb);
   if(digits>5) digits=5; // an int is 32767 max = 5 digits
-  #ifdef FONT5X7_C
-  gb.display.setFont(font5x7);
-  #endif
   while(1) {
     if (gb.update()) {
+      #ifdef FONT5X7_C
+      gb.display.setFont(font5x7);
+      #endif
       // draw input bar
       if(strlen(nb)) gb.display.print(nb);
       if((gb.frameCount/4)%2) gb.display.print(F("_"));
@@ -37,10 +37,9 @@ int numKeyboard(int init, byte digits) {
       gb.display.drawRoundRect((2+3*x)*gb.display.fontWidth-3, (y+1)*(gb.display.fontHeight+2), ((x==3 && y==2)?2.5:1.5)*gb.display.fontWidth+2, gb.display.fontHeight+3, 3);
       // draw legend
       gb.display.cursorY=LCDHEIGHT-gb.display.fontHeight+1;
-      #ifdef FRENCH
-      gb.display.print(F("\026annuler"));
-      #else
-      gb.display.print(F("\026cancel"));
+      gb.display.print(F("\026"CANCEL));
+      #ifdef FONT5X7_C
+      gb.display.setFont(font3x5);
       #endif
       // handle user input
       if(gb.buttons.pressed(BTN_RIGHT)) x=(x+1)%4;
@@ -49,9 +48,6 @@ int numKeyboard(int init, byte digits) {
       if(gb.buttons.pressed(BTN_UP)) { y--; if(y==255) y=2; }
       if(gb.buttons.pressed(BTN_A)) {
         if(x==3 && y==2) { // 'ok' button
-          #ifdef FONT5X7_C
-          gb.display.setFont(font3x5);
-          #endif
           return char2int(nb);
         } else if(x==3 && y==0) { // '<' (del) button
           nb[strlen(nb)-1]=NULL;
@@ -62,12 +58,8 @@ int numKeyboard(int init, byte digits) {
           nb[++l]=NULL;
         }
       }
-      if (gb.buttons.pressed(BTN_B)) {
-        #ifdef FONT5X7_C
-        gb.display.setFont(font3x5);
-        #endif
+      if (gb.buttons.pressed(BTN_B))
         return -1; // Cancelled by user
-      }
     } // if (gb.update())
   } // while(1)
 } // numKeyboard()
