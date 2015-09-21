@@ -82,23 +82,13 @@ void showAbout() {
       gb.display.drawFastHLine(0,gb.display.cursorY,LCDWIDTH);
       moveCursor(CURRENT, CURRENT+2); // gb.display.cursorY+=2;
       // display lines of information
-      #ifdef FRENCH
-      gb.display.println(F("Moteur Gamebookuino"));
+      gb.display.println(PGMT(DF_engine));
       gb.display.print(F(" "));
       gb.display.println(F(ENGINE_VER));
-      gb.display.println(F("Logiciel PC crea LDV"));
+      gb.display.println(PGMT(DF_pcsoft));
       gb.display.print(F(" "));
       gb.display.println(F(PCSOFT_VER));
       gb.display.println(F("web: mougino.free.fr"));
-      #else
-      gb.display.println(F("Gamebookuino engine"));
-      gb.display.print(F(" "));
-      gb.display.println(F(ENGINE_VER));
-      gb.display.println(F("PC software LDV maker"));
-      gb.display.print(F(" "));
-      gb.display.println(F(PCSOFT_VER));
-      gb.display.println(F("web: mougino.free.fr"));
-      #endif
       #ifdef FONT5X7_C
       gb.display.setFont(font5x7);
       #endif
