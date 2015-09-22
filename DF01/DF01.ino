@@ -253,8 +253,10 @@ void restoreStatsFromEEPROM() {
   par+=EEPROM.read(13) & 0x00FF; //LSB
   lastp=(EEPROM.read(14) << 8) & 0xFF00; //MSB
   lastp+=EEPROM.read(15) & 0x00FF; //LSB
+  poffset=(EEPROM.read(16) << 8) & 0xFF00; //MSB
+  poffset+=EEPROM.read(17) & 0x00FF; //LSB
   for(byte i=0; i<EQPSIZE-1; i++) {
-    eqp[i]=EEPROM.read(16+i);
+    eqp[i]=EEPROM.read(18+i);
   } eqp[EQPSIZE-1]=NULL;
   #endif
 }
@@ -277,8 +279,10 @@ void saveStatsToEEPROM() {
   EEPROM.write(13, par & 0x00FF); //LSB
   EEPROM.write(14, (lastp >> 8) & 0x00FF); //MSB
   EEPROM.write(15, lastp & 0x00FF); //LSB
+  EEPROM.write(16, (poffset >> 8) & 0x00FF); //MSB
+  EEPROM.write(17, poffset & 0x00FF); //LSB
   for(byte i=0; i<EQPSIZE-1; i++) {
-    EEPROM.write(16+i, eqp[i]); }
+    EEPROM.write(18+i, eqp[i]); }
   #endif
 }
 
