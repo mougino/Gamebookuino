@@ -1,3 +1,6 @@
+// PROGMEM const char keyboard[]="qwertyuiopasdfghjkl<zxcvbnm_\030"; // Qwerty keyboard
+// PROGMEM const char keyboard[]="azertyuiopqsdfghjklmwxcvbn_\030<"; // Azerty keyboard
+
 void printAlpha(boolean caps, byte i) {
   char c=(char)pgm_read_byte(&(keyboard[i])); // read char array in PROGMEM
   if(caps && c>='a' && c<='z') c=c&~(0x20); // if(caps) convert to upper case

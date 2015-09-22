@@ -43,7 +43,7 @@ PROGMEM const char DF_po_luc[]="Chance niveau ini+1";
 PROGMEM const char DF_axn[]="[ACTIONS]";
 PROGMEM const char DF_save[]="Sauver la partie";
 PROGMEM const char DF_savok[]="Sauvegarde effectuee";
-PROGMEM const char DF_back[]="Retour dernier paragraphe";
+PROGMEM const char DF_back[]="Dernier paragraphe";
 PROGMEM const char DF_roll1[]="Lancer un de";
 PROGMEM const char DF_roll2[]="Lancer deux des";
 PROGMEM const char DF_goto[]="Aller au...";
@@ -83,12 +83,12 @@ PROGMEM const char dummy[]=
 Gamebuino gb;
 
 #define ITMSIZE 17  // item of equipment: 17 characters max including starting '^' and final '\n' or '\0'
-#define EQPSIZE 255 // equipment: 14 items of 17 chr (more if items < 17 characters)
+#define EQPSIZE 255 // equipment: 15 items of 17 chr (more if items < 17 characters)
 #define NCHRX 21    // number of characters per line with font3x5
 #define NCHRY 8     // number of lines per screen with font3x5
 #define TXTSIZE 180 // text on screen: max 21x8 characters (with font3x5) + final '\0' + a few characters on next line (for active links)
 
-#define EEPROM_IDENTIFIER 0xFFDF // FF = Fighting Fantasy, DF = Défis Fantastiques
+#define EEPROM_IDENTIFIER 0xFFDF // FF = Fighting Fantasy, DF = Defis Fantastiques
 #define PGMT(pgm_ptr) (reinterpret_cast <const __FlashStringHelper*> (pgm_ptr))
 #define IS_SPECIAL_CHARACTER(T) (T=='>' || T=='<' || T=='^')
 #define TEST_YOUR_LUCK 0
@@ -167,12 +167,11 @@ extern const byte font5x7[]; // a large, comfy font
 #endif
 
 // stats: skill, stamina, luck (current/total) ; paragraph & other variables
-byte skiC, skiT, staC, staT, luC, luT, potion, potionType, gold, prov;
-word par, poffset, oldpoffset;
-int crline, oldcrline;
+byte skiC, skiT, staC, staT, luC, luT, potion, potionType, gold, prov; // byte=0 to 255
+word par, lastp, poffset, oldpoffset; // word=0 to 65535
+int crline, oldcrline, ldverr; // int=-32768 to 32767
 byte nxline, nxpage, pcaret, oldpcaret;
-boolean inAdvSheet=false;
-int ldverr;
+boolean inAdvSheet=false; // boolean=0 or 1
 char eqp[EQPSIZE]; // Offers EQPSIZE-1 usable characters, from eqp[0] to eqp[EQPSIZE-2] + final '\0' at eqp[EQPSIZE-1]
 char txt[TXTSIZE]; // Offers TXTSIZE-1 usable characters, from txt[0] to txt[TXTSIZE-2] + final '\0' at txt[TXTSIZE-1]
 
@@ -228,6 +227,7 @@ void initGame() {
   luC=luT=random(1,7)+6; // 1D+6
   potionType=255; // 0=SKILL ; 1=STAMINA ; 2=LUCK ; 255=Undefined
   par=0;
+  lastp=0x7777;
   strcpy_P(eqp, DF_eqp_ini); // equipment
 }
 
@@ -251,8 +251,10 @@ void restoreStatsFromEEPROM() {
   prov=EEPROM.read(11);
   par=(EEPROM.read(12) << 8) & 0xFF00; //MSB
   par+=EEPROM.read(13) & 0x00FF; //LSB
+  lastp=(EEPROM.read(14) << 8) & 0xFF00; //MSB
+  lastp+=EEPROM.read(15) & 0x00FF; //LSB
   for(byte i=0; i<EQPSIZE-1; i++) {
-    eqp[i]=EEPROM.read(14+i);
+    eqp[i]=EEPROM.read(16+i);
   } eqp[EQPSIZE-1]=NULL;
   #endif
 }
@@ -273,8 +275,10 @@ void saveStatsToEEPROM() {
   EEPROM.write(11, prov);
   EEPROM.write(12, (par >> 8) & 0x00FF); //MSB
   EEPROM.write(13, par & 0x00FF); //LSB
+  EEPROM.write(14, (lastp >> 8) & 0x00FF); //MSB
+  EEPROM.write(15, lastp & 0x00FF); //LSB
   for(byte i=0; i<EQPSIZE-1; i++) {
-    EEPROM.write(14+i, eqp[i]); }
+    EEPROM.write(16+i, eqp[i]); }
   #endif
 }
 
@@ -432,20 +436,33 @@ void loop() {
             gb.popup(DF_savok,15);
             break;
 
-          case '\012': // Roll 1 die
+          case '\012': // Back to last paragraph
+            if(lastp!=0x7777) {
+              choice=par; par=lastp; lastp=choice; // swap par, lastp
+              inAdvSheet=false;
+              backToBook();
+            }
+            break;
+
+          case '\013': // Roll 1 die
             showDice(ROLL_ONE_DIE);
             break;
 
-          case '\013': // Roll 2 dice
+          case '\014': // Roll 2 dice
             showDice(ROLL_BOTH_DICE);
             break;
 
-          case '\014': // Goto paragraph
+          case '\015': // Goto paragraph
             choice=numKeyboard(-1, 3); // no init number, 3 digits max
-            if(choice!=-1 && choice<=NPAR) { par=choice; inAdvSheet=false; backToBook(); }
+            if(choice!=-1 && choice<=NPAR) {
+              lastp=par; // store old paragraph
+              par=choice;
+              inAdvSheet=false;
+              backToBook();
+            }
             break;
 
-          case '\015': // Add equipment
+          case '\016': // Add equipment
             char newitm[ITMSIZE]=""; // Offers ITMSIZE-1 usable characters, from newitm[0] to newitm[ITMSIZE-2] + final '\0' at newitm[ITMSIZE-1]
             alphaKeyboard(newitm, ITMSIZE-1); // -1 to leave room for final '\0'
             if(strlen(newitm) && strlen(eqp)<EQPSIZE-1) {
@@ -460,8 +477,10 @@ void loop() {
 
       } else { // [IN BOOK]
         if(txt[pcaret]=='>') { // Goto paragraph
+          lastp=par; // store old paragraph
           par=char2int(txt+pcaret+1);
-          backToBook(); }
+          backToBook();
+        }
         else if(txt[pcaret]=='<')
           showDice(TEST_YOUR_LUCK);
         else if(txt[pcaret]=='^') {

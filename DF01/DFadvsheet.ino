@@ -37,23 +37,26 @@ void showAdventureSheet() {
     catStr(PGMT(DF_axn)); catStr("\n"); }
   if(crline<=8) { // save game
     catStr(">\011"); catStr(PGMT(DF_save)); catStr("\n"); }
-  if(crline<=9) { // roll 1 die
-    catStr(">\012"); catStr(PGMT(DF_roll1)); catStr("\n"); }
-  if(crline<=10) { // roll both dice
-    catStr(">\013"); catStr(PGMT(DF_roll2)); catStr("\n"); }
-  if(crline<=11) { // goto paragraph
-    catStr(">\014"); catStr(PGMT(DF_goto));
+  if(crline<=9) { // back to last paragraph
+    catStr(">\012"); catStr(PGMT(DF_back)); catStr("\n"); }
+  if(crline<=10) { // roll 1 die
+    catStr(">\013"); catStr(PGMT(DF_roll1)); catStr("\n"); }
+  if(crline<=11) { // roll both dice
+    catStr(">\014"); catStr(PGMT(DF_roll2)); catStr("\n"); }
+  if(crline<=12) { // goto paragraph
+    catStr(">\015"); catStr(PGMT(DF_goto));
     #ifdef debug
     catInt(par);
     #endif
     catStr("\n");
   }
-  if(crline<=12) { // [EQUIPMENT]
+  if(crline<=13) { // [EQUIPMENT]
     catStr(PGMT(DF_eqp)); catStr("\n"); }
   for(byte i=0; i<nbOfEquipment(); i++) { // items
-    if(crline<=13+i) { catStr(eqp+itemOffset(i)); break; }
+    if(crline<=14+i) { catStr(eqp+itemOffset(i)); break; }
   }
-  catStr("\n>\015"); catStr(PGMT(DF_add));
+  if(crline<=14+nbOfEquipment()) { // add equipment
+    catStr("\n>\016"); catStr(PGMT(DF_add)); }
   txt[TXTSIZE-1]=NULL; // final '\0' for protection
 } // showAdventureSheet()
 
