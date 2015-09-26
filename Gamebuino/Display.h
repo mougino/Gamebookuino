@@ -153,6 +153,7 @@ public:
 	void fillRoundRect(int8_t x0, int8_t y0, int8_t w, int8_t h, int8_t radius);
 	
 	void drawBitmap(int8_t x, int8_t y, const uint8_t *bitmap);
+	void drawBitmap(int8_t x, int8_t y, char *bitmap);
 	void drawBitmap(int8_t x, int8_t y, const uint8_t *bitmap, uint8_t rotation, uint8_t flip);
 	boolean getBitmapPixel(const uint8_t* bitmap, uint8_t x, uint8_t y);
 	

@@ -540,6 +540,25 @@ boolean Display::getBitmapPixel(const uint8_t* bitmap, uint8_t x, uint8_t y){
   return pgm_read_byte(bitmap+2 + y * ((pgm_read_byte(bitmap)+7)/8) + (x >> 3)) & (B10000000 >> (x % 8));
 }
 
+void Display::drawBitmap(int8_t x, int8_t y, char *bitmap) {
+	byte w = bitmap[0];
+	byte h = bitmap[1];
+#if (ENABLE_BITMAPS > 0)
+    int8_t i, j, byteNum, bitNum, byteWidth = (w + 7) >> 3;
+    for (i = 0; i < w; i++) {
+        byteNum = i / 8;
+        bitNum = i % 8;
+        for (j = 0; j < h; j++) {
+            if ((bitmap[2 + j * byteWidth + byteNum]) & (B10000000 >> bitNum)) {
+                drawPixel(x + i, y + j);
+            }
+        }
+    }
+#else
+	drawRect(x, y, w, h);
+#endif
+}
+
 void Display::drawBitmap(int8_t x, int8_t y, const uint8_t *bitmap,
         uint8_t rotation, uint8_t flip) {
 	if((rotation == NOROT) && (flip == NOFLIP)){
