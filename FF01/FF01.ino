@@ -1,10 +1,11 @@
 // Nota: this app needs a modified version of the Gamebuino library
-// with sound and keyboard stripped off, and enhanced gb.popup()
+// with sound and keyboard stripped off, an enhanced gb.popup()
+// and an enhanced gb.display.drawBitmap().
 // If it was not provided to you when you downloaded this file,
 // you can get it at https://github.com/mougino/Gamebookuino
 
-#define ENGINE_VER "v0.2 (24-AUG-2015)"
-#define PCSOFT_VER "v0.2 (20-SEP-2015)"
+#define ENGINE_VER "v0.3 (01-OCT-2015)"
+#define PCSOFT_VER "v0.3 (01-OCT-2015)"
 
 #include <SPI.h>
 #include <Gamebuino.h>
@@ -12,7 +13,7 @@
 #include <EEPROM.h>
 
 //#define debug // Comment for live engine. Uncomment for demo engine
-#define FONT5X7_C // Comment if you want only Font3x5, numKeyboard() won't be as pretty but it'll save memory
+//#define FONT5X7_C // Comment if you want only Font3x5, numKeyboard() won't be as pretty but it'll save memory
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // THIS IS THE PART TO CHANGE WHEN YOU BUILD THE APP WITH A DIFFERENT GAMEBOOK:
@@ -59,7 +60,7 @@ PROGMEM const char DF_flee[]="Escape battle";
 PROGMEM const char DF_you[]="YOU";
 PROGMEM const char DF_fski[]="ski";
 PROGMEM const char DF_fsta[]="STA:";
-PROGMEM const char DF_dead[]="You are dead...\nPress \025 to restart the adventure";
+PROGMEM const char DF_dead[]="You are dead...\nPress \025 to\nrestart the adventure";
 // Menus
 PROGMEM const char DF_m1s1[]="Change current stat";
 PROGMEM const char DF_m1s2[]="Change initial level";
@@ -83,12 +84,12 @@ PROGMEM const char dummy[]=
 Gamebuino gb;
 
 #define ITMSIZE 17  // item of equipment: 17 characters max including starting '^' and final '\n' or '\0'
-#define EQPSIZE 255 // equipment: 14 items of 17 chr (more if items < 17 characters)
+#define EQPSIZE 255 // equipment: 15 items of 17 chr (more if items < 17 characters)
 #define NCHRX 21    // number of characters per line with font3x5
 #define NCHRY 8     // number of lines per screen with font3x5
-#define TXTSIZE 180 // text on screen: max 21x8 characters (with font3x5) + final '\0' + a few characters on next line (for active links)
+#define TXTSIZE 180 // text on screen: max 21x8 characters (with font3x5) + final '\0' + a few characters on next line for active links
 
-#define EEPROM_IDENTIFIER 0xFFDF // FF = Fighting Fantasy, DF = Défis Fantastiques
+#define EEPROM_IDENTIFIER 0xFFDF // FF = Fighting Fantasy, DF = Defis Fantastiques
 #define PGMT(pgm_ptr) (reinterpret_cast <const __FlashStringHelper*> (pgm_ptr))
 #define IS_SPECIAL_CHARACTER(T) (T=='>' || T=='<' || T=='^')
 #define TEST_YOUR_LUCK 0
@@ -167,12 +168,11 @@ extern const byte font5x7[]; // a large, comfy font
 #endif
 
 // stats: skill, stamina, luck (current/total) ; paragraph & other variables
-byte skiC, skiT, staC, staT, luC, luT, potion, potionType, gold, prov;
-word par, poffset, oldpoffset;
-int crline, oldcrline;
+byte skiC, skiT, staC, staT, luC, luT, potion, potionType, gold, prov; // byte=0 to 255
 byte nxline, nxpage, pcaret, oldpcaret;
-boolean inAdvSheet=false;
-int ldverr;
+int ldverr; // int=-32768 to 32767
+word par, lastp, poffset, oldpoffset, crline, oldcrline; // word=0 to 65535
+boolean bmpInPar,inAdvSheet=false; // boolean=0 or 1
 char eqp[EQPSIZE]; // Offers EQPSIZE-1 usable characters, from eqp[0] to eqp[EQPSIZE-2] + final '\0' at eqp[EQPSIZE-1]
 char txt[TXTSIZE]; // Offers TXTSIZE-1 usable characters, from txt[0] to txt[TXTSIZE-2] + final '\0' at txt[TXTSIZE-1]
 
@@ -228,53 +228,77 @@ void initGame() {
   luC=luT=random(1,7)+6; // 1D+6
   potionType=255; // 0=SKILL ; 1=STAMINA ; 2=LUCK ; 255=Undefined
   par=0;
+  lastp=0x7777;
   strcpy_P(eqp, DF_eqp_ini); // equipment
+}
+
+byte readNextByteFromEEPROM(int &pos) {
+  return EEPROM.read(pos++);
+}
+
+word readNextWordFromEEPROM(int &pos) {
+  word r=(EEPROM.read(pos++) << 8) & 0xFF00; //MSB
+  r+=EEPROM.read(pos++) & 0x00FF; //LSB
+  return r;
 }
 
 void restoreStatsFromEEPROM() {
   #ifdef debug
   initGame();
   #else
-  word id;
-  id=(EEPROM.read(0) << 8) & 0xFF00; //MSB
-  id+=EEPROM.read(1) & 0x00FF; //LSB
-  if(id!=EEPROM_IDENTIFIER) { initGame(); return; } // initialize stats if no or bad EEPROM identifier
-  skiC=EEPROM.read(2);
-  skiT=EEPROM.read(3);
-  staC=EEPROM.read(4);
-  staT=EEPROM.read(5);
-  luC=EEPROM.read(6);
-  luT=EEPROM.read(7);
-  potion=EEPROM.read(8);
-  potionType=EEPROM.read(9);
-  gold=EEPROM.read(10);
-  prov=EEPROM.read(11);
-  par=(EEPROM.read(12) << 8) & 0xFF00; //MSB
-  par+=EEPROM.read(13) & 0x00FF; //LSB
+  int a=0; // place ourselves at beginning of EEPROM
+  if(readNextWordFromEEPROM(a)!=EEPROM_IDENTIFIER) { initGame(); return; } // initialize stats if no or bad EEPROM identifier
+  skiC       = readNextByteFromEEPROM(a);
+  skiT       = readNextByteFromEEPROM(a);
+  staC       = readNextByteFromEEPROM(a);
+  staT       = readNextByteFromEEPROM(a);
+  luC        = readNextByteFromEEPROM(a);
+  luT        = readNextByteFromEEPROM(a);
+  potion     = readNextByteFromEEPROM(a);
+  potionType = readNextByteFromEEPROM(a);
+  gold       = readNextByteFromEEPROM(a);
+  prov       = readNextByteFromEEPROM(a);
+  par        = readNextWordFromEEPROM(a);
+  lastp      = readNextWordFromEEPROM(a);
+  poffset    = readNextWordFromEEPROM(a);
+  crline     = readNextWordFromEEPROM(a);
+  bmpInPar   = readNextByteFromEEPROM(a);
   for(byte i=0; i<EQPSIZE-1; i++) {
-    eqp[i]=EEPROM.read(14+i);
+    eqp[i]   = readNextByteFromEEPROM(a);
   } eqp[EQPSIZE-1]=NULL;
   #endif
 }
 
+void appendByteToEEPROM(int &pos, byte b) {
+  EEPROM.write(pos++, b);
+}
+
+void appendWordToEEPROM(int &pos, word w) {
+  EEPROM.write(pos++, (w >> 8) & 0x00FF); //MSB
+  EEPROM.write(pos++, w & 0x00FF); //LSB
+}
+
 void saveStatsToEEPROM() {
   #ifndef debug
-  EEPROM.write(0, (EEPROM_IDENTIFIER >> 8) & 0x00FF); //MSB
-  EEPROM.write(1, EEPROM_IDENTIFIER & 0x00FF); //LSB
-  EEPROM.write(2, skiC);
-  EEPROM.write(3, skiT);
-  EEPROM.write(4, staC);
-  EEPROM.write(5, staT);
-  EEPROM.write(6, luC);
-  EEPROM.write(7, luT);
-  EEPROM.write(8, potion);
-  EEPROM.write(9, potionType);
-  EEPROM.write(10, gold);
-  EEPROM.write(11, prov);
-  EEPROM.write(12, (par >> 8) & 0x00FF); //MSB
-  EEPROM.write(13, par & 0x00FF); //LSB
+  int a=0; // place ourselves at beginning of EEPROM
+  appendWordToEEPROM(a,   EEPROM_IDENTIFIER);
+  appendByteToEEPROM(a,   skiC);
+  appendByteToEEPROM(a,   skiT);
+  appendByteToEEPROM(a,   staC);
+  appendByteToEEPROM(a,   staT);
+  appendByteToEEPROM(a,   luC);
+  appendByteToEEPROM(a,   luT);
+  appendByteToEEPROM(a,   potion);
+  appendByteToEEPROM(a,   potionType);
+  appendByteToEEPROM(a,   gold);
+  appendByteToEEPROM(a,   prov);
+  appendWordToEEPROM(a,   par);
+  appendWordToEEPROM(a,   lastp);
+  appendWordToEEPROM(a,   poffset);
+  appendWordToEEPROM(a,   crline);
+  appendByteToEEPROM(a,   bmpInPar);
   for(byte i=0; i<EQPSIZE-1; i++) {
-    EEPROM.write(14+i, eqp[i]); }
+    appendByteToEEPROM(a, eqp[i]); }
   #endif
 }
 
@@ -298,17 +322,21 @@ void loop() {
   if(gb.update()) {
     int choice;
 
-    if(!staC && !inAdvSheet) { // no more STAMINA points
+    if(!staC && !inAdvSheet) { // no more STAMINA points -> dead
       gb.display.drawBitmap(37, 0, skull);
       gb.display.cursorY=10;
-      gb.display.textWrap=true;
       gb.display.println(PGMT(DF_dead));
-      gb.display.textWrap=false;
 
-    } else { // still in the game ;)
-      gb.display.textWrap=true;
+    } else if((byte)txt[0]==0xff) { // still in the game, bitmap being displayed
+      if(gb.buttons.pressed(BTN_DOWN) || gb.buttons.pressed(BTN_RIGHT)) { // DOWN or PAGE-DOWN
+        gb.display.persistence=false;
+        crline=1; // set current line as first line of text (after bitmap)
+        poffset=529; // place ourselves after 0xFF marker + 528 bytes of image data (84/8 rounded-up x48 lines)
+        readBook();
+      }
+
+    } else { // text being displayed (book or adventure sheet)
       printBook();
-      gb.display.textWrap=false;
 
       // handle user input
       if(gb.buttons.pressed(BTN_DOWN)) { // DOWN
@@ -328,6 +356,8 @@ void loop() {
         else if(crline) { // we can scroll up
           if(inAdvSheet) {
             crline--; showAdventureSheet();
+          } else if(bmpInPar && crline==1) {
+            backToBook(); // reset paragraph offset/crline (displays bitmap)
           } else seekBook(crline-1); // seek book to find offset for absolute current line minus 1
           pcaret=255; // reset caret for next printBook()
         } // can scroll up
@@ -347,6 +377,8 @@ void loop() {
           if(inAdvSheet) {
             crline=max(0, crline-NCHRY);
             showAdventureSheet();
+          } else if(bmpInPar && crline<=NCHRY) {
+            backToBook(); // reset paragraph offset/crline (displays bitmap)
           } else seekBook(crline-NCHRY); // seek book to find offset for absolute current line minus (nb.of.lines.per.scr)
           pcaret=255; // reset caret for next printBook()
         } // can scroll up
@@ -423,29 +455,42 @@ void loop() {
             break;
 
           case '\011': // Save game
-            saveStatsToEEPROM();
             inAdvSheet=false;
             poffset=oldpoffset; // restore position in book
             crline=oldcrline;
             pcaret=oldpcaret;
+            saveStatsToEEPROM();
             readBook();
             gb.popup(DF_savok,15);
             break;
 
-          case '\012': // Roll 1 die
+          case '\012': // Back to last paragraph
+            if(lastp!=0x7777) {
+              choice=par; par=lastp; lastp=choice; // swap par, lastp
+              inAdvSheet=false;
+              backToBook();
+            }
+            break;
+
+          case '\013': // Roll 1 die
             showDice(ROLL_ONE_DIE);
             break;
 
-          case '\013': // Roll 2 dice
+          case '\014': // Roll 2 dice
             showDice(ROLL_BOTH_DICE);
             break;
 
-          case '\014': // Goto paragraph
+          case '\015': // Goto paragraph
             choice=numKeyboard(-1, 3); // no init number, 3 digits max
-            if(choice!=-1 && choice<=NPAR) { par=choice; inAdvSheet=false; backToBook(); }
+            if(choice!=-1 && choice<=NPAR) {
+              lastp=par; // store old paragraph
+              par=choice;
+              inAdvSheet=false;
+              backToBook();
+            }
             break;
 
-          case '\015': // Add equipment
+          case '\016': // Add equipment
             char newitm[ITMSIZE]=""; // Offers ITMSIZE-1 usable characters, from newitm[0] to newitm[ITMSIZE-2] + final '\0' at newitm[ITMSIZE-1]
             alphaKeyboard(newitm, ITMSIZE-1); // -1 to leave room for final '\0'
             if(strlen(newitm) && strlen(eqp)<EQPSIZE-1) {
@@ -460,8 +505,10 @@ void loop() {
 
       } else { // [IN BOOK]
         if(txt[pcaret]=='>') { // Goto paragraph
+          lastp=par; // store old paragraph
           par=char2int(txt+pcaret+1);
-          backToBook(); }
+          backToBook();
+        }
         else if(txt[pcaret]=='<')
           showDice(TEST_YOUR_LUCK);
         else if(txt[pcaret]=='^') {
@@ -472,6 +519,7 @@ void loop() {
     if(gb.buttons.pressed(BTN_B)) { // ADVENTURE SHEET <-> BOOK
       inAdvSheet=!inAdvSheet;
       if(inAdvSheet) { // BOOK -> ADVENTURE SHEET
+        gb.display.persistence=false; // in case we are displaying a bitmap
         oldpoffset=poffset; // save position in book
         oldcrline=crline;
         oldpcaret=pcaret;
@@ -486,6 +534,9 @@ void loop() {
     }
 
     if(gb.buttons.pressed(BTN_C)) { // TITLE
+      gb.display.persistence=false; // in case we are displaying a bitmap
+      if(inAdvSheet) { // restore these 2 vars to save book pos (and not AdvSheet pos) in EEPROM
+        poffset=oldpoffset; crline=oldcrline; }
       saveStatsToEEPROM();
       gb.popup(DF_savok,15);
       myTitleScreen(PGMT(DF_title1), PGMT(DF_title2), DF_logo);
@@ -506,23 +557,6 @@ long Toc(int idx) { // read paragraph offset in Table of Content on SD
   return 0x10000L*(byte)tmp[0]+0x100L*(byte)tmp[1]+(byte)tmp[2];
 }
 
-void showToc() {
-  while(1) {
-    if(gb.update()) {
-      gb.display.print(F("par: ")); gb.display.println(par);
-      gb.display.print(F("Toc: 0x"));
-      WORD br; char tmp[5]; // Offers 3 usable characters, from eqp[0] to eqp[2] + final '\0' at eqp[3]
-      pf_lseek(3*par); // go in ToC
-      pf_read((void*)&tmp[0], 3, &br); // read 3 bytes
-      for(byte i=0; i<3; i++) { gb.display.print((byte)tmp[i], HEX); }
-      gb.display.println("");
-      gb.display.print(F("decimal: "));
-      gb.display.println(Toc(par));
-      if(gb.buttons.pressed(BTN_B)) break;
-    }
-  }
-}
-
 void backToBook() {
   poffset=crline=0;
   pcaret=255;
@@ -530,12 +564,12 @@ void backToBook() {
 }
 
 void readBook() { // read current paragraph Toc(par) at poffset and store into txt[] (buffer the size of the screen)
+  if(!poffset) bmpInPar=false;
   #ifdef debug // use dummy gamebook
-  int psize=min(TXTSIZE-2, strlen(dummy)-poffset);
+  int psize=min(TXTSIZE-2, strlen_P(dummy)-poffset);
   strncpy_P(&txt[0], dummy+poffset, psize);
   txt[psize+1]=NULL;
   #else        // open real gamebook on SD
-  //showToc();
   WORD br;
   long crpoffset=Toc(par)+poffset;
   long nxpoffset=Toc(par+1);
@@ -544,11 +578,27 @@ void readBook() { // read current paragraph Toc(par) at poffset and store into t
   pf_read((void*)&txt[0], psize, &br);
   txt[psize+1]=NULL;
   #endif
+  if((byte)txt[0]==0xff) { // it's a bitmap!
+    if(!poffset) bmpInPar=true;
+    gb.display.persistence=true; // stop clearing screen at every gb.update()
+    gb.display.clear();
+    txt[1]=84; txt[2]=16; // get bitmap data in 3 blocks of 16 lines
+    for(byte y=0; y<48; y+=16) {
+      #ifdef debug // use dummy gamebook to get bitmap data
+      for(byte i=0; i<11*16; i++) { txt[i+3]=pgm_read_byte(&(dummy[i+1+11*y])); }
+      #else // read bitmap data from SD
+      pf_lseek(crpoffset+1+11*y);
+      pf_read((void*)&txt[3], 11*16, &br);
+      #endif
+      gb.display.drawBitmap(0, y, txt+1); // and draw it!
+    }
+  } // it's a bitmap!
 }
 
 void seekBook(int tgtline) { // seek current paragraph for target line (used when reading up w/ buttons UP/LEFT)
   byte x,y,nxl[11]; // nxl[] index starts at 0 for first new line (=2nd line on screen) up to (NCHRY-2)+1 for next page offset
   poffset=0; crline=0; // start from the top of the paragraph
+  if(bmpInPar) poffset=529; // if there is a bitmap in the paragraph, text starts after (at position 529)
   if(tgtline<=0) { readBook(); return; } // very first line wanted -> we're done (+can't seek before beginning of paragraph)
   do {
     readBook();
@@ -558,16 +608,14 @@ void seekBook(int tgtline) { // seek current paragraph for target line (used whe
       if(c==NULL || y>NCHRY) break; // screen has been filled
       x++; if(x>NCHRX || c=='\n') { y++; x=1; nxl[y-2]=i+1; }
     } // for(byte i=0; ; i++)
-    if(tgtline!=crline) {
       if(tgtline<=crline+NCHRY) { // target line is somewhere in current page
         poffset+=nxl[tgtline-crline-1];
         crline=tgtline; // found!
         readBook();
-      } else { // target line is in another page -> proceed to load next one
+    } else if(crline!=tgtline) { // target line is in another page -> proceed to load next one
           crline+=NCHRY; // go down 1 page
           poffset+=nxl[NCHRY-1]; // prepare offset for next iteration of while() loop
       }
-    } // if(tgtline!=crline)
   } while(crline!=tgtline);
 }
 

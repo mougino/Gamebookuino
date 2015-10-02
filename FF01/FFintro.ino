@@ -79,7 +79,8 @@ void myTitleScreen(const __FlashStringHelper* title1, const __FlashStringHelper*
         if(!ldverr && (gb.buttons.pressed(BTN_A) || (gb.frameCount>=gb.startMenuTimer && gb.startMenuTimer!=255))) {
           gb.startMenuTimer=255; //don't automatically skip the title screen next time it's displayed
           inAdvSheet=false;
-          backToBook(); // read where we were last time
+          pcaret=255;
+          readBook(); // read where we were last time
           break;
         }
 
