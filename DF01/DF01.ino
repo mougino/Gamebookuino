@@ -86,7 +86,7 @@ Gamebuino gb;
 #define EQPSIZE 255 // equipment: 15 items of 17 chr (more if items < 17 characters)
 #define NCHRX 21    // number of characters per line with font3x5
 #define NCHRY 8     // number of lines per screen with font3x5
-#define TXTSIZE 180 // text on screen: max 21x8 characters (with font3x5) + final '\0' + a few characters on next line (for active links)
+#define TXTSIZE 180 // text on screen: max 21x8 characters (with font3x5) + final '\0' + a few characters on next line for active links
 
 #define EEPROM_IDENTIFIER 0xFFDF // FF = Fighting Fantasy, DF = Defis Fantastiques
 #define PGMT(pgm_ptr) (reinterpret_cast <const __FlashStringHelper*> (pgm_ptr))
@@ -231,58 +231,71 @@ void initGame() {
   strcpy_P(eqp, DF_eqp_ini); // equipment
 }
 
+byte readNextByteFromEEPROM(int &pos) {
+  return EEPROM.read(pos++);
+}
+
+word readNextWordFromEEPROM(int &pos) {
+  word r=(EEPROM.read(pos++) << 8) & 0xFF00; //MSB
+  r+=EEPROM.read(pos++) & 0x00FF; //LSB
+  return r;
+}
+
 void restoreStatsFromEEPROM() {
   #ifdef debug
   initGame();
   #else
-  word id;
-  id=(EEPROM.read(0) << 8) & 0xFF00; //MSB
-  id+=EEPROM.read(1) & 0x00FF; //LSB
-  if(id!=EEPROM_IDENTIFIER) { initGame(); return; } // initialize stats if no or bad EEPROM identifier
-  skiC=EEPROM.read(2);
-  skiT=EEPROM.read(3);
-  staC=EEPROM.read(4);
-  staT=EEPROM.read(5);
-  luC=EEPROM.read(6);
-  luT=EEPROM.read(7);
-  potion=EEPROM.read(8);
-  potionType=EEPROM.read(9);
-  gold=EEPROM.read(10);
-  prov=EEPROM.read(11);
-  par=(EEPROM.read(12) << 8) & 0xFF00; //MSB
-  par+=EEPROM.read(13) & 0x00FF; //LSB
-  lastp=(EEPROM.read(14) << 8) & 0xFF00; //MSB
-  lastp+=EEPROM.read(15) & 0x00FF; //LSB
-  poffset=(EEPROM.read(16) << 8) & 0xFF00; //MSB
-  poffset+=EEPROM.read(17) & 0x00FF; //LSB
+  int a=0; // place ourselves at beginning of EEPROM
+  if(readNextWordFromEEPROM(a)!=EEPROM_IDENTIFIER) { initGame(); return; } // initialize stats if no or bad EEPROM identifier
+  skiC       = readNextByteFromEEPROM(a);
+  skiT       = readNextByteFromEEPROM(a);
+  staC       = readNextByteFromEEPROM(a);
+  staT       = readNextByteFromEEPROM(a);
+  luC        = readNextByteFromEEPROM(a);
+  luT        = readNextByteFromEEPROM(a);
+  potion     = readNextByteFromEEPROM(a);
+  potionType = readNextByteFromEEPROM(a);
+  gold       = readNextByteFromEEPROM(a);
+  prov       = readNextByteFromEEPROM(a);
+  par        = readNextWordFromEEPROM(a);
+  lastp      = readNextWordFromEEPROM(a);
+  poffset    = readNextWordFromEEPROM(a);
+  crline     = readNextWordFromEEPROM(a);
   for(byte i=0; i<EQPSIZE-1; i++) {
-    eqp[i]=EEPROM.read(18+i);
+    eqp[i]   = readNextByteFromEEPROM(a);
   } eqp[EQPSIZE-1]=NULL;
   #endif
 }
 
+void appendByteToEEPROM(int &pos, byte b) {
+  EEPROM.write(pos++, b);
+}
+
+void appendWordToEEPROM(int &pos, word w) {
+  EEPROM.write(pos++, (w >> 8) & 0x00FF); //MSB
+  EEPROM.write(pos++, w & 0x00FF); //LSB
+}
+
 void saveStatsToEEPROM() {
   #ifndef debug
-  EEPROM.write(0, (EEPROM_IDENTIFIER >> 8) & 0x00FF); //MSB
-  EEPROM.write(1, EEPROM_IDENTIFIER & 0x00FF); //LSB
-  EEPROM.write(2, skiC);
-  EEPROM.write(3, skiT);
-  EEPROM.write(4, staC);
-  EEPROM.write(5, staT);
-  EEPROM.write(6, luC);
-  EEPROM.write(7, luT);
-  EEPROM.write(8, potion);
-  EEPROM.write(9, potionType);
-  EEPROM.write(10, gold);
-  EEPROM.write(11, prov);
-  EEPROM.write(12, (par >> 8) & 0x00FF); //MSB
-  EEPROM.write(13, par & 0x00FF); //LSB
-  EEPROM.write(14, (lastp >> 8) & 0x00FF); //MSB
-  EEPROM.write(15, lastp & 0x00FF); //LSB
-  EEPROM.write(16, (poffset >> 8) & 0x00FF); //MSB
-  EEPROM.write(17, poffset & 0x00FF); //LSB
+  int a=0; // place ourselves at beginning of EEPROM
+  appendWordToEEPROM(a,   EEPROM_IDENTIFIER);
+  appendByteToEEPROM(a,   skiC);
+  appendByteToEEPROM(a,   skiT);
+  appendByteToEEPROM(a,   staC);
+  appendByteToEEPROM(a,   staT);
+  appendByteToEEPROM(a,   luC);
+  appendByteToEEPROM(a,   luT);
+  appendByteToEEPROM(a,   potion);
+  appendByteToEEPROM(a,   potionType);
+  appendByteToEEPROM(a,   gold);
+  appendByteToEEPROM(a,   prov);
+  appendWordToEEPROM(a,   par);
+  appendWordToEEPROM(a,   lastp);
+  appendWordToEEPROM(a,   poffset);
+  appendWordToEEPROM(a,   crline);
   for(byte i=0; i<EQPSIZE-1; i++) {
-    EEPROM.write(18+i, eqp[i]); }
+    appendByteToEEPROM(a, eqp[i]); }
   #endif
 }
 
@@ -306,17 +319,14 @@ void loop() {
   if(gb.update()) {
     int choice;
 
-    if(!staC && !inAdvSheet) { // no more STAMINA points
+    if(!staC && !inAdvSheet) { // no more STAMINA points -> dead
       gb.display.drawBitmap(37, 0, skull);
       gb.display.cursorY=10;
-      gb.display.textWrap=true;
       gb.display.println(PGMT(DF_dead));
-      gb.display.textWrap=false;
 
     } else { // still in the game ;)
-      gb.display.textWrap=true;
+
       printBook();
-      gb.display.textWrap=false;
 
       // handle user input
       if(gb.buttons.pressed(BTN_DOWN)) { // DOWN
@@ -431,11 +441,11 @@ void loop() {
             break;
 
           case '\011': // Save game
-            saveStatsToEEPROM();
             inAdvSheet=false;
             poffset=oldpoffset; // restore position in book
             crline=oldcrline;
             pcaret=oldpcaret;
+            saveStatsToEEPROM();
             readBook();
             gb.popup(DF_savok,15);
             break;
@@ -509,6 +519,8 @@ void loop() {
     }
 
     if(gb.buttons.pressed(BTN_C)) { // TITLE
+      if(inAdvSheet) { // restore these 2 vars to save book pos (and not AdvSheet pos) in EEPROM
+        poffset=oldpoffset; crline=oldcrline; }
       saveStatsToEEPROM();
       gb.popup(DF_savok,15);
       myTitleScreen(PGMT(DF_title1), PGMT(DF_title2), DF_logo);
@@ -529,23 +541,6 @@ long Toc(int idx) { // read paragraph offset in Table of Content on SD
   return 0x10000L*(byte)tmp[0]+0x100L*(byte)tmp[1]+(byte)tmp[2];
 }
 
-void showToc() {
-  while(1) {
-    if(gb.update()) {
-      gb.display.print(F("par: ")); gb.display.println(par);
-      gb.display.print(F("Toc: 0x"));
-      WORD br; char tmp[5]; // Offers 3 usable characters, from eqp[0] to eqp[2] + final '\0' at eqp[3]
-      pf_lseek(3*par); // go in ToC
-      pf_read((void*)&tmp[0], 3, &br); // read 3 bytes
-      for(byte i=0; i<3; i++) { gb.display.print((byte)tmp[i], HEX); }
-      gb.display.println("");
-      gb.display.print(F("decimal: "));
-      gb.display.println(Toc(par));
-      if(gb.buttons.pressed(BTN_B)) break;
-    }
-  }
-}
-
 void backToBook() {
   poffset=crline=0;
   pcaret=255;
@@ -554,11 +549,10 @@ void backToBook() {
 
 void readBook() { // read current paragraph Toc(par) at poffset and store into txt[] (buffer the size of the screen)
   #ifdef debug // use dummy gamebook
-  int psize=min(TXTSIZE-2, strlen(dummy)-poffset);
+  int psize=min(TXTSIZE-2, strlen_P(dummy)-poffset);
   strncpy_P(&txt[0], dummy+poffset, psize);
   txt[psize+1]=NULL;
   #else        // open real gamebook on SD
-  //showToc();
   WORD br;
   long crpoffset=Toc(par)+poffset;
   long nxpoffset=Toc(par+1);
@@ -581,16 +575,14 @@ void seekBook(int tgtline) { // seek current paragraph for target line (used whe
       if(c==NULL || y>NCHRY) break; // screen has been filled
       x++; if(x>NCHRX || c=='\n') { y++; x=1; nxl[y-2]=i+1; }
     } // for(byte i=0; ; i++)
-    if(tgtline!=crline) {
       if(tgtline<=crline+NCHRY) { // target line is somewhere in current page
         poffset+=nxl[tgtline-crline-1];
         crline=tgtline; // found!
         readBook();
-      } else { // target line is in another page -> proceed to load next one
+    } else if(crline!=tgtline) { // target line is in another page -> proceed to load next one
           crline+=NCHRY; // go down 1 page
           poffset+=nxl[NCHRY-1]; // prepare offset for next iteration of while() loop
       }
-    } // if(tgtline!=crline)
   } while(crline!=tgtline);
 }
 
