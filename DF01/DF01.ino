@@ -335,7 +335,9 @@ void loop() {
       }
 
     } else { // text being displayed (book or adventure sheet)
+      gb.display.textWrap=true;
       printBook();
+      gb.display.textWrap=false;
 
       // handle user input
       if(gb.buttons.pressed(BTN_DOWN)) { // DOWN
