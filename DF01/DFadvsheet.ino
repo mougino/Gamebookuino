@@ -190,7 +190,7 @@ void showFight() {
     if (gb.update()) {
 
       if((!esta || !staC) && !endanim) { before=true; endanim=21; } // ending animation (2s)
-      if(endanim) { endanim--; if(endanim==1) break; }
+      if(endanim) { if(--endanim==1) break; }
 
       // display menu title
       gb.display.println(PGMT(DF_fight));
@@ -261,6 +261,7 @@ void showFight() {
           if(flee || (yas!=eas)) { printCaret(tyl); gb.display.print(PGMT(DF_tyl)); }
         }
         // handle user input
+        if (gb.buttons.held(BTN_B, 20)) break; // hold B during 20 frames (2s): hard exit
         if(before) {
           if (gb.buttons.pressed(BTN_DOWN) || gb.buttons.pressed(BTN_UP)) flee=!flee;
           if (gb.buttons.pressed(BTN_A)) {
