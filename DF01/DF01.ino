@@ -348,6 +348,7 @@ void loop() {
           poffset+=nxline; // add relative offset to go to next line
           if(inAdvSheet) showAdventureSheet(); else readBook();
           if(pcaret!=255) { if(pcaret<nxline) pcaret=255; else pcaret-=nxline; }
+          if(nextCaretOnScreen()!=255) pcaret=nextCaretOnScreen(); // scroll caret at same time as line
         } // can scroll down
       } // DOWN
 
