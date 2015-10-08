@@ -570,7 +570,6 @@ void readBook() { // read current paragraph Toc(par) at poffset and store into t
   #ifdef debug // use dummy gamebook
   int psize=min(TXTSIZE-2, strlen_P(dummy)-poffset);
   strncpy_P(&txt[0], dummy+poffset, psize);
-  txt[psize+1]=NULL;
   #else        // open real gamebook on SD
   WORD br;
   long crpoffset=Toc(par)+poffset;
@@ -578,8 +577,8 @@ void readBook() { // read current paragraph Toc(par) at poffset and store into t
   int psize=min(TXTSIZE-2, nxpoffset-crpoffset);
   pf_lseek(crpoffset); // go to correct offset
   pf_read((void*)&txt[0], psize, &br);
-  txt[psize+1]=NULL;
   #endif
+  txt[psize]=NULL;
   if((byte)txt[0]==0xff) { // it's a bitmap!
     if(!poffset) bmpInPar=true;
     gb.display.persistence=true; // stop clearing screen at every gb.update()
