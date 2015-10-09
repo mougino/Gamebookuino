@@ -341,7 +341,7 @@ void loop() {
       gb.display.textWrap=false;
 
       // handle user input
-      if(gb.buttons.pressed(BTN_DOWN)) { // DOWN
+      if(gb.buttons.repeat(BTN_DOWN, 5)) { // DOWN
         if(nextCaretOnScreen()!=255)
           pcaret=nextCaretOnScreen();
         else if(nxline) { // we can scroll down
@@ -353,7 +353,7 @@ void loop() {
         } // can scroll down
       } // DOWN
 
-      if(gb.buttons.pressed(BTN_UP)) { // UP
+      if(gb.buttons.repeat(BTN_UP, 5)) { // UP
         if(prevCaretOnScreen()!=255)
           pcaret=prevCaretOnScreen();
         else if(crline) { // we can scroll up
@@ -366,7 +366,7 @@ void loop() {
         } // can scroll up
       } // UP
 
-      if(gb.buttons.pressed(BTN_RIGHT)) { // PAGE-DOWN
+      if(gb.buttons.repeat(BTN_RIGHT, 10)) { // PAGE-DOWN
         if(nxpage) {
           pcaret=255; // reset caret for next printBook()
           crline+=NCHRY; // increase absolute current line by (number.of.lines.per.screen)
@@ -375,7 +375,7 @@ void loop() {
         }
       } // PAGE-DOWN
 
-      if(gb.buttons.pressed(BTN_LEFT)) { // PAGE-UP
+      if(gb.buttons.repeat(BTN_LEFT, 10)) { // PAGE-UP
         if(crline) { // we can scroll up
           if(inAdvSheet) {
             crline=max(0, crline-NCHRY);
